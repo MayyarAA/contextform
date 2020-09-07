@@ -1,117 +1,245 @@
-"use strict";
 import React, { useContext, useEffect, useState, useCallback } from "react";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  List,
+  AutoSizer,
+  CellMeasurer,
+  CellMeasurerCache,
+} from "react-virtualized";
 import axios from "axios";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
+import TextField from "@material-ui/core/TextField";
+import Autocomplete from "react-autocomplete";
 
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
+import { SourceDBVersion } from "./SourceVersion";
+import { Box, Grid, GridList, Container, Typography } from "@material-ui/core";
 import { SubmitContext } from "../context/ContextSubmit";
+import FormControl from "@material-ui/core/FormControl";
+import { adminClientAPI } from "./URL/BaseURL";
+import {
+  useTheme,
+  makeStyles,
+  withStyles,
+  createMuiTheme,
+  ThemeProvider,
+} from "@material-ui/core/styles";
+const useStyles = makeStyles({
+  listbox: {
+    boxSizing: "border-box",
+    "& ul": {
+      padding: 0,
+      margin: 0,
+    },
+  },
+});
 
-const useStyles = makeStyles((theme) => ({
+const textTheme = createMuiTheme({
+  // palette: {
+  text: {
+    primary: "#ffffff",
+    secondary: "#00000",
+  },
+  // },
+});
+
+const WhiteTextTypography = withStyles({
   root: {
-    "& > *": {
-      margin: theme.spacing(1),
-      width: "25ch",
-    },
+    color: "#9e9e9e",
+    font: "Roboto",
+    align: "left",
   },
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: 200,
-  },
-  selectEmpty: {
-    marginTop: theme.spacing(2),
-  },
-  roottwo: {
-    "& .MuiTextField-root": {
-      margin: theme.spacing(1),
-      width: "25ch",
-    },
-  },
-}));
-// const [Clientid, setClientid] = useState("");
-
-function SimpleSelect() {
+})(Typography);
+function ClientSearch() {
   const classes = useStyles();
-  const { clientIDContext, setClientID, setClientName } = useContext(
+  function searchingFor() {}
+  let sVersionHolder;
+  let searchBar;
+  const cache = React.useRef(
+    new CellMeasurerCache({
+      fixedWidth: true,
+      defaultHeight: 80,
+      defaultWidth: 200,
+    })
+  );
+  const [clientList, setClientList] = useState();
+  const [searchTerm, setSearchTerm] = useState("");
+  const { clientNameContextTest, setClientNameTest } = useContext(
     SubmitContext
   );
-
-  const [objTest, setobjTest] = useState();
-
-  const clientAPI = useCallback(async () => {
-    
-    let url = "addhere";
+  const { sourceCategorycontext } = useContext(SubmitContext);
+  const {
+    clientNameContext,
+    clientIDContext,
+    setClientID,
+    setClientName,
+    clientAdminDBServerContext,
+    setClientAdminDBServer,
+    clientAdminDBContext,
+    setClientAdminDB,
+  } = useContext(SubmitContext);
+  // const { clientNameContextTest } = useContext(SubmitContext);
+  let envAPI = useCallback(async () => {
+    let url = adminClientAPI + sourceCategorycontext;
     await axios({
       method: "get",
       url,
-      auth: {
-        username: user,
-        password: pass,
-      },
     })
       .then(function (response) {
-        setobjTest(response.data);
-
+        setClientList(response.data);
         console.log(response.data);
       })
       .catch(function (error) {
         console.log(error);
       });
   });
+
   useEffect(() => {
-    clientAPI();
-  }, []);
+    envAPI();
+  }, [sourceCategorycontext]);
 
-  
+  useEffect(() => {
+    searchingFor();
+    console.log(searchTerm);
+  }, [searchTerm, sourceCategorycontext]);
+  let holder;
 
-  let clientArrTwo = [];
+  if (clientList !== undefined) {
+    searchingFor = () => {
+      for (let i = 0; i < clientList.length; i++) {
+        if (clientList[i].clientId == searchTerm) {
+          console.log(clientList[i]);
+          setClientID(clientList[i].clientId);
+          setClientAdminDBServer(clientList[i].adminDbSrv);
+          setClientAdminDB(clientList[i].adminDb);
+          setClientName(clientList[i].clientName);
+        }
+      }
+    };
+    const handleChange = (event, value) => {
+      setSearchTerm(event.target.value);
+      // setClientNameTest(event.target.value);
+      setClientID(value);
+      console.log(event.target.value);
+      console.log(value);
+    };
 
-  clientArrTwo.push(clientEx);
-
-  console.log(typeof clientArrTwo);
-
-  const [age, setAge] = React.useState(clientEx);
-
-  const handleChange = (event) => {
-    setAge(event.target.value);
-    setClientID(event.target.value.ClientID);
-    setClientName(event.target.value.ClientName);
-  };
-  let clientIdDrop;
-  if (objTest !== undefined) {
-    console.log(objTest[1].ClientDatabase);
-    for (let i = 1; i < 15; i++) {
-      clientArrTwo.push(objTest[i]);
-    }
-    console.log(clientIDContext);
-
-    clientIdDrop = (
-      <div>
-        {" "}
-        <FormControl className={classes.formControl}>
-          <InputLabel id="demo-simple-select-label">Client Info</InputLabel>
-          <Select
-            labelId="demo-simple-select-label"
-            id="demo-simple-select"
-            value={age}
-            onChange={handleChange}
+    const handleClick = (event, value) => {
+      // setSearchTerm(value);
+      setClientID(event.target.value);
+    };
+    const onSelect = (item) => {
+      setSearchTerm(item.clientId);
+      setClientNameTest(item.adminDbSrv);
+    };
+    const renderItem = (item) => {
+      return (
+        <div>
+          {item.clientName} {item.clientId}
+        </div>
+      );
+    };
+    const rowRenderer = (data) => ({ key, index, style, parent }) => {
+      const client = data[index];
+      return (
+        <CellMeasurer
+          key={key}
+          cache={cache.current}
+          parent={parent}
+          columnIndex={0}
+          rowIndex={index}
+        >
+          <div
+            key={key}
+            style={style}
+            onMouseDown={onSelect.bind(null, client)}
           >
-            {clientArrTwo.map((myList) => {
-              return (
-                <MenuItem key={myList.ClientDatabase} value={myList}>
-                  {" "}
-                  {myList.ClientName} + {myList.Site}{" "}
-                </MenuItem>
-              );
-            })}
-          </Select>
+            <h4>
+              {" "}
+              {client.clientName}-{client.clientId}
+            </h4>
+          </div>
+        </CellMeasurer>
+      );
+    };
+
+    const renderMenu = (data) => () => {
+      return (
+        <div align="left" style={{ width: "100%", height: "40vh" }}>
+          <AutoSizer>
+            {({ width, height }) => (
+              <List
+                width={width}
+                height={height}
+                defferredMeasurementCache={cache.current}
+                rowHeight={cache.current.rowHeight}
+                rowCount={data.length}
+                rowRenderer={rowRenderer(data)}
+                // onClick={handleClick}
+                onSelect={onSelect}
+              />
+            )}
+          </AutoSizer>
+        </div>
+      );
+    };
+
+    // const searchTerm = searchingFor;
+    let data = clientList;
+    if (searchTerm.length > 0) {
+      data = clientList.filter(
+        (item) =>
+          item.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          //   item.clientId.includes(searchTerm)
+          item.clientId == searchTerm
+      );
+      //   : clientList;
+    }
+
+    searchBar = (
+      <div>
+        <FormControl required>
+          <Box fontFamily="Roboto" color="#9e9e9e" align="left" fontSize={14}>
+            Client Info*
+          </Box>
+
+          <Autocomplete
+            classes={classes}
+            renderItem={renderItem}
+            items={data}
+            getItemValue={(item) => item.clientName}
+            value={searchTerm}
+            id="clientDropDownSearch"
+            onChange={handleChange}
+            onClick={handleClick}
+            onSelect={(item) => onSelect(item)}
+            renderMenu={renderMenu(data)}
+            renderItem={(item) => (
+              <div>
+                {" "}
+                {item.clientId} {item.clientId}
+              </div>
+            )}
+            shouldItemRender={() => false}
+            inputProps={{
+              style: { width: "200px", height: "30px" },
+              placeholder: "Enter Client Name or ID",
+            }}
+            wrapperStyle={{ width: "100%" }}
+          />
         </FormControl>
       </div>
     );
   }
-  return <div>{clientIdDrop}</div>;
+  if (sourceCategorycontext !== undefined && clientIDContext !== undefined) {
+    console.log("Reached adminclient near source db");
+    sVersionHolder = <SourceDBVersion />;
+  }
+
+  return (
+    <div>
+      {searchBar}
+
+      {sVersionHolder}
+    </div>
+  );
 }
 
-export { SimpleSelect };
+export { ClientSearch };
